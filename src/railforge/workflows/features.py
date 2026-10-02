@@ -10,6 +10,9 @@ from railforge.eta.event_fusion import fused_delay
 from railforge.inventory.wagon_pool import allocate
 from railforge.intermodal.connections import choose as choose_connection
 from railforge.maintenance.release import releasable
+from railforge.possession.joint_approval import JointApprovalDenied
+from railforge.possession.joint_approval import approve as joint_approve
+from railforge.possession.joint_approval import revoke as joint_revoke
 from railforge.possession.windows import conflicts as possession_conflicts
 from railforge.planning.loco_circulation import circulate
 from railforge.planning.train_path_engine import build, section_load, train_delay
@@ -20,7 +23,7 @@ from railforge.yard.switching import lock_route
 
 
 class RailForgeFeatureService:
-    """Fifteen product workflows, all committed through the common control plane."""
+    """Product workflows, all committed through the common control plane."""
 
     def __init__(self, control):
         self.control = control
@@ -81,6 +84,22 @@ class RailForgeFeatureService:
                 raise ValueError("block conflict")
             return {"approved": True}
         return self.control.run(operation_id, "feature.possession.approved", operation_id, at, action)
+
+    def approve_line_blockade(self, operation_id, request, events, possessions, occupancies,
+                              clearance, qualification_rules, bookings, at):
+        def action():
+            decision, log, state = joint_approve(request, events, possessions, occupancies,
+                                                 clearance, qualification_rules, bookings, at)
+            if not decision.approved:
+                raise JointApprovalDenied(decision.rejections)
+            return {"decision": decision, "events": log, "state": state}
+        return self.control.run(operation_id, "feature.line_blockade.approved", request.request_id, at, action)
+
+    def revoke_line_blockade(self, operation_id, request_id, events, reason, at):
+        def action():
+            log, state = joint_revoke(request_id, events, at, reason)
+            return {"events": log, "state": state}
+        return self.control.run(operation_id, "feature.line_blockade.revoked", request_id, at, action)
 
     def release_vehicle(self, operation_id, evidence, policy, check_at, brake_rows, gradient, at):
         def action():
