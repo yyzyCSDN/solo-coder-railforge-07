@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from railforge.braking.brake_percentage import brake_percentage
 from railforge.consist.integrity import validate
+from railforge.linework.service import BlockadeJointApprovalService
 from railforge.routing.clearance import route_ok
 from railforge.signaling.block_occupancy import conflicts
 from railforge.workflows.control import RailForgeWorkflowControl
@@ -13,6 +14,7 @@ class RailForgeService:
     def __init__(self, control: RailForgeWorkflowControl | None = None):
         self.control = control or RailForgeWorkflowControl()
         self.features = RailForgeFeatureService(self.control)
+        self.blockade_approvals = BlockadeJointApprovalService(self.control)
 
     def health(self):
         return {
